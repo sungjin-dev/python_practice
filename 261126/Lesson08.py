@@ -8,3 +8,8 @@ print(profile(name="민수", level="basic"))
 items = [("pen", 1500) , ("book", 12000), ("eraser", 500)]
 print(sorted(items, key=lambda item: item[1], reverse=True))  # 새로운 객체
 print(items.sorted(items, key=lambda item: item[1], reverse=True)) # 원본 수정          
+
+
+
+
+
