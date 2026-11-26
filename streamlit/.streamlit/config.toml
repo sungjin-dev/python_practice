@@ -1,0 +1,8 @@
+[theme]
+base = "light"                  # "light" 또는 "dark"
+primaryColor = "#ff4b4b"        # 포인트 색상 (버튼, 슬라이더 등)
+backgroundColor = "#ffffff"     # 메인 배경색
+secondaryBackgroundColor = "#f0f2f6" # 사이드바/카드 등 보조 배경색
+textColor = "#262730"           # 기본 텍스트 색상
+font = "sans serif"             # "sans serif", "serif", "monospace"
+codeFont = "monospace"          # 코드 폰트 ("monospace", "sans serif", "serif")
