@@ -1,7 +1,8 @@
+from pathlib import Path
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 from common import parse_sales, summarize
+from datetime import datetime
 
 st.set_page_config(page_title="미니 POS & 매출 대시보드", layout="wide")
 st.title("🏪올인원 미니 POS & 매출 분석기")
@@ -27,27 +28,26 @@ if st.button("요약 캐시 초기화"):
 
 uploaded = st.file_uploader("UTF-8 CSV", type=["csv"])  
 
-path_check = Path(__file__).resolve().parents[1] /".vscode" /"data"/"sales.csv"  # resolve() : 상대 경로를 절대 경로로 변환
+path_check = Path(__file__).resolve().parents[1] /".vscode"/"data"/"sales.csv"  
 
 base_rows = []
 
-if uploaded :
-    try :
+try:
+    if uploaded :
         base_rows = parse_sales(uploaded.getvalue()) 
         st.sidebar.success(f"CSV에서 {len(base_rows)}행을 불러왔습니다.")  
-    except ValueError as exc:
-        st.error(str(exc))   
-else: 
-    if path_check :
-            parse_sales(path_check.read_bytes())
+    elif path_check:
+        base_rows = parse_sales(path_check.read_bytes())
     else : 
-        uploaded= [
-            {"product": "book", "quantity": 2, "price": 12000}, 
-            {"product": "pen", "quantity": 5, "price": 1500}]
-    
+        base_rows= [
+            {"product": "book", "quantity": 2, "price": 12000, "month": "2026-11"}, 
+            {"product": "pen", "quantity": 5, "price": 1500, "month": "2026-11"}]
+except ValueError as exc:
+    st.error(str(exc))    
+
 all_rows = base_rows + st.session_state.pos_orders
 
-tab1, tab2, tab3 = st.tabs(["📊 매출 대시보드", "💳 POS 주문 입력", "💬 매출 도우미 챗봇"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 매출 대시보드", "💳 POS 주문 입력", "💬 매출 도우미 챗봇", "🧾​가계부 및 월간 지출", "✔️​TO-DO-LIST"])
 
 with tab1:
     choices = ["전체"] + sorted({row["product"]for row in all_rows})  # 리스트 + 연산인듯?
@@ -83,6 +83,9 @@ with tab1:
 
 with tab2 :
     st.header("신규 현장 주문 등록")
+
+    if "pos_orders" not in st.session_state:
+        st.session_state.pos_orders = []
     
     st.info(f"상품명 및 가격, {summary["by_product"]}")
     with st.form("pos_form", clear_on_submit = True):
@@ -93,6 +96,9 @@ with tab2 :
 
         summitted = st.form_submit_button("주문 추가")
 
+    if summitted:
+        st.session_state.pop("result", None) 
+
         clean_name = p_name.strip()
         
         if not clean_name or len(clean_name) > 40:
@@ -100,16 +106,14 @@ with tab2 :
         elif  clean_name not in summary["by_product"] :
             st.error("목록에 없는 상품입니다.")
         else:
-            st.session_state.pos_orders = {
+            st.session_state.pos_orders.append({
                 "product" : clean_name,
                 "quantity" : int(p_qty),
-                "price" : int(p_price)
-            }
-            st.success(f"'{clean_name}' {p_qty}개 (총 {p_qty*p_price:,}원)")
-
-    if summitted:
-            st.session_state.pop("result", None)     
-       
+                "price" : int(p_price),
+                "month" : datetime.now().strftime("%Y-%m")
+            })
+            st.success(f"'{clean_name}' {p_qty}개 (총 {p_qty * p_price:,}원) 주문이 등록되었습니다! 대시보드 탭에서 확인하세요.")
+            
 with tab3 :
     st.header("데이터 기반 간단 Q&A")
     if "messages" not in st.session_state:
@@ -142,3 +146,35 @@ with tab3 :
     for message in st.session_state.messages :
         with st.chat_message(message["role"]):
             st.write(message["content"])
+
+with tab4 :
+    st.header("가계부 및 월간 지출 분석 페이지")
+
+    st.title("월별 가계부")
+
+    budget_info = st.session_state.pos_orders
+
+    if not budget_info:
+        st.error("아직 소비가 없습니다.")
+    else :
+        df = pd.DataFrame(budget_info)
+        df["consume"] = df["quantity"] * df["price"]
+        st.dataframe(df, hide_index = True)
+        st.bar_chart(df.set_index("month")["consume"])
+        st.metric("월별 소비", f"{int(df['consume'].sum()):,}원") 
+        st.metric("최대 소비 달", f"{df['consume'].max():,}원")
+
+with tab5 :       
+    st.header("할일 목록")
+    if "todos" not in st.session_state:
+        st.session_state.todos = []
+    new = st.text_input("할 일")
+    if st.button("추가") and new.strip():
+        st.session_state.todos.append(new.strip())
+    if st.button("모두 지우기"):
+        st.session_state.todos = []
+    for number, todo in enumerate(st.session_state.todos, 1):
+        st.write(f"{number}. {todo}")
+    st.caption(f"총 {len(st.session_state.todos)}개")
+
+    
